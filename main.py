@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.requests import Request
@@ -47,22 +47,31 @@ async def event_api(
         up = await req.json()
         device_id = up["deviceInfo"]["deviceName"]
         time_receive = str_to_time(up["time"])
-        data = decode(up["data"])
+        try:
+            data = decode(up["data"])
+        except ValueError as e:
+            logging.error(f"Decoding error: {e}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
         time_send = data["time"]
-        for sensor_id, values in data["sensors"].items():
-            water = values["water_content"]
-            temp = values["temperature"]
-            logging.debug(f"Adding sensor-data entry: {device_id}, {sensor_id}, {time_send}, {time_receive}, {water}, {temp}")
-            data = SensorData(
-                device_id=device_id,
-                sensor_id=sensor_id,
-                time_send=time_send,
-                time_receive=time_receive,
-                water_content=water,
-                temperature=temp
-            )
-            db.add(data)
-        await db.commit()
+        try:
+            for sensor_id, values in data["sensors"].items():
+                water = values["water_content"]
+                temp = values["temperature"]
+                logging.debug(f"Adding sensor-data entry: {device_id}, {sensor_id}, {time_send}, {time_receive}, {water}, {temp}")
+                data = SensorData(
+                    device_id=device_id,
+                    sensor_id=sensor_id,
+                    time_send=time_send,
+                    time_receive=time_receive,
+                    water_content=water,
+                    temperature=temp
+                )
+                db.add(data)
+            await db.commit()
+        except Exception as e:
+            logging.error(f"Database error: {e}")
+            logging.info("Failed to add sensor-data entries. Rolling back...")
+            await db.rollback()
         logging.info("Finished processing event!")
     return {}
 

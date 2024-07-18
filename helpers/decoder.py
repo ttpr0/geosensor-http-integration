@@ -1,6 +1,7 @@
 import base64
 import struct
 from datetime import datetime
+import logging
 
 def decode(s: str) -> dict:
     """Decodes sensor data from base64-encoded binary payload
@@ -18,6 +19,8 @@ def decode(s: str) -> dict:
     hour = struct.unpack_from('B', b, 4)[0]
     minute = struct.unpack_from('B', b, 5)[0]
     second = struct.unpack_from('B', b, 6)[0]
+    if year < 0 or month < 0 or month > 12 or day < 0 or day > 31 or hour < 0 or hour > 23 or minute < 0 or minute > 59 or second < 0 or second > 59:
+        raise ValueError("Invalid time")
     time = datetime(year, month, day, hour, minute, second)
     data = {
         "time": time,
@@ -28,6 +31,10 @@ def decode(s: str) -> dict:
         addr = struct.unpack_from('c', b, 7 + 9*i)[0]
         water = struct.unpack_from('f', b, 7 + 9*i + 1)[0]
         temp = struct.unpack_from('f', b, 7 + 9*i + 5)[0]
+        # check for invalid values
+        if water < 0.0 or water > 100.0 or temp < -50.0 or temp > 100.0:
+            logging.error("Invalid sensor data received. Skipping this sensor...")
+            continue
         data["sensors"][str(addr, "utf-8")] = {
             "water_content": water,
             "temperature": temp,

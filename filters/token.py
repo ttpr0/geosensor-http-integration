@@ -1,4 +1,5 @@
 from typing import Annotated
+import logging
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -20,5 +21,6 @@ async def get_token(token: Annotated[str, Depends(_reuseable_oauth)]) -> str:
         HTTPException: if token is invalid 
     """
     if token != config.AUTH_TOKEN:
+        logging.error(f"Unauthorized request.")
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
     return token
