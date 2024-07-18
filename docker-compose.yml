@@ -1,0 +1,9 @@
+version: '2.4'
+services:
+  dvan-api:
+    container_name: geosensor-api
+    ports:
+      - "5000:5000"
+    user: "${UID:-0}:${GID:-0}"
+    build:
+      context: ./
